@@ -1,0 +1,120 @@
+import numpy as np
+import pandas as pd
+import os
+import json
+import requests
+
+# Function to extract text from a file
+def extract_text_from_txt(file_path):
+    with open(file_path, 'r') as file:
+        text = file.read()
+    return text
+
+# Function to call the custom API
+def openai_call(user_query):
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": 'api-key',
+    }
+
+    # Payload for the request
+    payload = {
+        "messages": [
+           {
+                "role": "system",
+                "content": [{"type": "text", "text": "You are an AI assistant"}]
+            },
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": user_query}]
+            }
+        ],
+        "temperature": 0.1,
+        "top_p": 0.95,
+        "max_tokens": 2000,
+    }
+
+    ENDPOINT = "https://endpoint url"
+
+    # Send request
+    response = requests.post(ENDPOINT, headers=headers, json=payload)
+    response = response.json()
+    return response["choices"][0]["message"]["content"]
+
+# Extract Meeting Summary
+def extract_summary(transcript):
+    user_query = f"Summarize the following meeting transcript:\n\n{transcript}"
+    return openai_call(user_query)
+
+# Extract Action Items
+def extract_action_items(transcript, summary=None):
+    if summary:
+        user_query = (
+            f"Using the following meeting summary as context:\n\n{summary}\n\n"
+            f"Extract all action items from the meeting transcript, including the person responsible and deadlines if mentioned:\n\n{transcript}"
+        )
+    else:
+        user_query = (
+            f"Extract all action items from the following meeting transcript, "
+            f"including the person responsible and deadlines if mentioned:\n\n{transcript}"
+        )
+    return openai_call(user_query)
+
+# Extract Decisions Made
+def extract_decisions(transcript, summary=None):
+    if summary:
+        user_query = (
+            f"Using the following meeting summary as context:\n\n{summary}\n\n"
+            f"List all decisions made during the meeting mentioned in the transcript:\n\n{transcript}"
+        )
+    else:
+        user_query = (
+            f"List all decisions made during the meeting mentioned in the following transcript:\n\n{transcript}"
+        )
+    return openai_call(user_query)
+
+# Perform Named Entity Recognition (NER)
+def extract_named_entities(transcript):
+    user_query = (
+        f"Identify all named entities in the following transcript, "
+        f"including names, organizations, dates, and locations:\n\n{transcript}"
+    )
+    return openai_call(user_query)
+
+# Save results to a file
+def save_to_file(output_folder, file_name, content):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    file_path = os.path.join(output_folder, file_name)
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(content)
+    print(f"Results saved to: {file_path}")
+
+# Main Function
+if __name__ == "__main__":
+    # Load the transcript from the file
+    transcript_file_path = 'Input/meeting_transcribe'
+    transcript = extract_text_from_txt(transcript_file_path)
+
+    # Extract information
+    summary = extract_summary(transcript)
+    action_items = extract_action_items(transcript, summary)
+    decisions = extract_decisions(transcript, summary)
+    named_entities = extract_named_entities(transcript)
+
+    # Prepare content for the output file
+    output_content = (
+        "Meeting Summary:\n"
+        f"{summary}\n\n"
+        "Action Items:\n"
+        f"{action_items}\n\n"
+        "Decisions Made:\n"
+        f"{decisions}\n\n"
+        "Named Entities:\n"
+        f"{named_entities}"
+    )
+
+    # Save to output file
+    output_folder = "Output"
+    output_file_name = "Meeting_Summary.txt"
+    save_to_file(output_folder, output_file_name, output_content)
